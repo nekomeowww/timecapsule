@@ -16,7 +16,7 @@ import (
 func TestNewRedisDataloader(t *testing.T) {
 	sortedSetKey := "test/timecapsule/redis/zset"
 
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 	err := redisClient.Ping().Err()
 	require.NoError(t, err)
 
@@ -29,7 +29,7 @@ func TestNewRedisDataloader(t *testing.T) {
 func TestRedisDataloaderType(t *testing.T) {
 	sortedSetKey := "test/timecapsule/redis/zset"
 
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 	err := redisClient.Ping().Err()
 	require.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestRedisDataloaderBuryFor(t *testing.T) {
 	require.NoError(err)
 
 	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 	err = redisClient.Ping().Err()
 	require.NoError(err)
 
@@ -82,7 +82,7 @@ func TestRedisDataloaderBuryUtil(t *testing.T) {
 	require.NoError(err)
 
 	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 	err = redisClient.Ping().Err()
 	require.NoError(err)
 
@@ -120,7 +120,7 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 
 		sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 		err = redisClient.Ping().Err()
 		require.NoError(err)
 
@@ -153,7 +153,7 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 
 		sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 		err = redisClient.Ping().Err()
 		require.NoError(err)
 
@@ -194,7 +194,7 @@ func TestRedisDataloaderDestroy(t *testing.T) {
 	require.NoError(err)
 
 	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 	err = redisClient.Ping().Err()
 	require.NoError(err)
 

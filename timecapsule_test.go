@@ -16,7 +16,7 @@ import (
 )
 
 var sortedSetKey = "test/timecapsule/redis/zset"
-var redisClient = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379"), Password: "123456"})
+var redisClient = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
 
 func TestMain(m *testing.M) {
 	err := redisClient.Ping().Err()
