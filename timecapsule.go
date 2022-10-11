@@ -149,5 +149,7 @@ func (t *TimeCapsuleDigger[C]) Stop() {
 	}
 
 	t.shouldStop = true
+	t.diggingTicker.Stop()
 	t.stopChan <- struct{}{}
+	close(t.stopChan)
 }
