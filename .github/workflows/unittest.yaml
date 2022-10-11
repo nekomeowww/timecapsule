@@ -1,0 +1,133 @@
+name: Unit Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      # 代码签出
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 设定 Go 环境
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "^1.18.0"
+          cache: true
+
+      # Get values for cache paths to be used in later steps
+      - name: Setup Go Cache PATH
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      # Cache go build cache, used to speedup go test
+      - name: Go Build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      # Cache go mod cache, used to speedup builds
+      - name: Go Mod Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+      
+      # 代码检查潜在错误
+      - name: Vet (Scan for protential mistakes)
+        run: |
+          go vet ./...
+  buildtest:
+    runs-on: ubuntu-latest
+    steps:
+      # 代码签出
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      # 设定 Go 环境
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "^1.18.0"
+          cache: true
+
+      # Get values for cache paths to be used in later steps
+      - name: Setup Go Cache PATH
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      # Cache go build cache, used to speedup go test
+      - name: Go Build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      # Cache go mod cache, used to speedup builds
+      - name: Go Mod Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+      # 测试构建
+      - name: Test Build
+        run: go build -v
+  unittest:
+    # 运行目标
+    runs-on: ubuntu-latest
+    steps:
+      # 代码签出
+      # 代码签出
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 设定 Go 环境
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "^1.18.0"
+          cache: true
+
+      # Get values for cache paths to be used in later steps
+      - name: Setup Go Cache PATH
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      # Cache go build cache, used to speedup go test
+      - name: Go Build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+
+      # Cache go mod cache, used to speedup builds
+      - name: Go Mod Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+
+      # 单元测试
+      - name: Unit tests
+        run: |
+          go test ./... -coverprofile=coverage.out -covermode=atomic -p=1
+          go tool cover -func coverage.out
