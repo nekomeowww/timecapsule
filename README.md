@@ -1,5 +1,8 @@
 # TimeCapsule
 
+[![Go Report](https://goreportcard.com/badge/github.com/nekomeowww/timecapsule)](https://goreportcard.com/report/github.com/nekomeowww/timecapsule)
+[![Unit Tests](https://github.com/nekomeowww/timecapsule/actions/workflows/unittest.yaml/badge.svg)](https://github.com/nekomeowww/timecapsule/actions/workflows/unittest.yaml)
+
 TimeCapsule is a Redis based task scheduling module written in Golang. It is designed to be used as a library in your own application. It is not a standalone application.
 
 As the name suggests, it is inspired by the concept of **time capsule** which is designed to be used in a similar way.
