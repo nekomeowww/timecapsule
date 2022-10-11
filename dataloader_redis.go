@@ -50,13 +50,7 @@ func (r *RedisDataloader[C]) BuryUtil(payload C, utilUnixMilliTimestamp int64) e
 }
 
 func (r *RedisDataloader[C]) bury(capsuleBase64String string, utilUnixMilliTimestamp int64) error {
-	pipeline := r.redisClient.TxPipeline()
-	err := pipeline.ZAdd(r.sortedSetKey, redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
-	if err != nil {
-		return err
-	}
-
-	_, err = pipeline.Exec()
+	err := r.redisClient.ZAdd(r.sortedSetKey, redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
 	if err != nil {
 		return err
 	}
