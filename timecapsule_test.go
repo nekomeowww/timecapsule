@@ -62,7 +62,7 @@ func TestSetHandler(t *testing.T) {
 	require.NotNil(digger)
 
 	var handlerProceesed bool
-	digger.SetHandler(func(capsule *TimeCapsule[any]) {
+	digger.SetHandler(func(digger *TimeCapsuleDigger[any], capsule *TimeCapsule[any]) {
 		assert.Equal("hello", capsule.Payload)
 		handlerProceesed = true
 	})
@@ -91,7 +91,7 @@ func TestStart(t *testing.T) {
 		digger := NewDigger[string](redisDataloder, 5*time.Millisecond, TimeCapsuleDiggerOption{Logger: logrus.New()})
 		require.NotNil(digger)
 
-		digger.SetHandler(func(capsule *TimeCapsule[string]) {
+		digger.SetHandler(func(digger *TimeCapsuleDigger[string], capsule *TimeCapsule[string]) {
 			mutex.Lock()
 			defer mutex.Unlock()
 			handlerProceesed[capsule.Payload] = handlerProceesed[capsule.Payload] + 1
@@ -135,7 +135,7 @@ func TestBuryFor(t *testing.T) {
 	require.NotNil(digger)
 
 	var handlerProceesed bool
-	digger.SetHandler(func(capsule *TimeCapsule[any]) {
+	digger.SetHandler(func(digger *TimeCapsuleDigger[any], capsule *TimeCapsule[any]) {
 		assert.Equal("hello", capsule.Payload)
 		handlerProceesed = true
 	})
@@ -160,7 +160,7 @@ func TestBuryUntil(t *testing.T) {
 	require.NotNil(digger)
 
 	var handlerProceesed bool
-	digger.SetHandler(func(capsule *TimeCapsule[any]) {
+	digger.SetHandler(func(digger *TimeCapsuleDigger[any], capsule *TimeCapsule[any]) {
 		assert.Equal("hello", capsule.Payload)
 		handlerProceesed = true
 	})

@@ -9,7 +9,7 @@ import (
 )
 
 // RedisDataloader is a dataloader that loads data from redis
-type RedisDataloader[C any] struct {
+type RedisDataloader[P any] struct {
 	sortedSetKey string
 	redisClient  *redis.Client
 }
@@ -18,15 +18,15 @@ type RedisDataloader[C any] struct {
 var _ Dataloader[any] = (*RedisDataloader[any])(nil)
 
 // NewRedisDataloader creates a new RedisDataloader
-func NewRedisDataloader[C any](sortedSetKey string, redisClient *redis.Client) *RedisDataloader[C] {
-	return &RedisDataloader[C]{
+func NewRedisDataloader[P any](sortedSetKey string, redisClient *redis.Client) *RedisDataloader[P] {
+	return &RedisDataloader[P]{
 		sortedSetKey: sortedSetKey,
 		redisClient:  redisClient,
 	}
 }
 
 // Type returns the type of the dataloader
-func (r *RedisDataloader[C]) Type() string {
+func (r *RedisDataloader[P]) Type() string {
 	return "Redis"
 }
 
@@ -34,7 +34,7 @@ func (r *RedisDataloader[C]) Type() string {
 //
 // Equivalent to redis command:
 //	ZADD sortedSetKey <now timestamp + forTimeRange> <capsule base64 string>
-func (r *RedisDataloader[C]) BuryFor(payload C, forTimeRange time.Duration) error {
+func (r *RedisDataloader[P]) BuryFor(payload P, forTimeRange time.Duration) error {
 	utilUnixMilliTimestamp := time.Now().UTC().Add(forTimeRange).UnixMilli()
 	return r.BuryUtil(payload, utilUnixMilliTimestamp)
 }
@@ -43,13 +43,13 @@ func (r *RedisDataloader[C]) BuryFor(payload C, forTimeRange time.Duration) erro
 //
 // Equivalent to redis command:
 //	ZADD sortedSetKey utilUnixMilliTimestamp <capsule base64 string>
-func (r *RedisDataloader[C]) BuryUtil(payload C, utilUnixMilliTimestamp int64) error {
+func (r *RedisDataloader[P]) BuryUtil(payload P, utilUnixMilliTimestamp int64) error {
 	now := time.Now().UTC().UnixMilli()
 	newCapsule := TimeCapsule[any]{Payload: payload, BuriedAt: now}
 	return r.bury(newCapsule.Base64String(), utilUnixMilliTimestamp)
 }
 
-func (r *RedisDataloader[C]) bury(capsuleBase64String string, utilUnixMilliTimestamp int64) error {
+func (r *RedisDataloader[P]) bury(capsuleBase64String string, utilUnixMilliTimestamp int64) error {
 	err := r.redisClient.ZAdd(r.sortedSetKey, redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (r *RedisDataloader[C]) bury(capsuleBase64String string, utilUnixMilliTimes
 //	           -----------------
 //	           |               |
 //	return TimeCapsule     return
-func (r *RedisDataloader[C]) Dig() (*TimeCapsule[C], error) {
+func (r *RedisDataloader[P]) Dig() (*TimeCapsule[P], error) {
 	now := time.Now().UTC()
 	members, err := r.redisClient.ZRangeByScore(r.sortedSetKey, redis.ZRangeBy{
 		Min: "0",
@@ -120,7 +120,7 @@ func (r *RedisDataloader[C]) Dig() (*TimeCapsule[C], error) {
 	if !ok {
 		return nil, err
 	}
-	capsule, err := NewTimeCapsuleFromBase64String[C](capsuleContent)
+	capsule, err := NewTimeCapsuleFromBase64String[P](capsuleContent)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (r *RedisDataloader[C]) Dig() (*TimeCapsule[C], error) {
 //
 // Equivalent to redis command:
 //	ZREM sortedSetKey <capsule base64 string>
-func (r *RedisDataloader[C]) Destroy(capsule *TimeCapsule[C]) error {
+func (r *RedisDataloader[P]) Destroy(capsule *TimeCapsule[P]) error {
 	_, _, err := lo.AttemptWithDelay(100, 500*time.Millisecond, func(i int, d time.Duration) error {
 		pipeline := r.redisClient.TxPipeline()
 		err := pipeline.ZRem(r.sortedSetKey, capsule.Base64String()).Err()

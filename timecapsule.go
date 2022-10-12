@@ -56,12 +56,12 @@ func mergeTimeCapsuleDiggerOption(original *TimeCapsuleDiggerOption, options ...
 // TimeCapsuleDigger will keep polling from TimeCapsuleDigger instance for new messages
 // once TimeCapsuleDigger.Start() is called, and will stop once TimeCapsuleDigger.Stop()
 // is called
-type TimeCapsuleDigger[C any] struct {
+type TimeCapsuleDigger[P any] struct {
 	logger     TimeCapsuleLogger
-	dataloader Dataloader[C]
+	dataloader Dataloader[P]
 	option     TimeCapsuleDiggerOption
 
-	handlerFunc func(capsule *TimeCapsule[C])
+	handlerFunc func(digger *TimeCapsuleDigger[P], capsule *TimeCapsule[P])
 
 	// Digging ticker to notify the goroutine to dig a new capsule
 	diggingTicker *time.Ticker
@@ -80,8 +80,8 @@ type TimeCapsuleDigger[C any] struct {
 //	topicKey: string
 // digInterval is the interval of digging a new capsule
 //	digInterval: time.Duration
-func NewDigger[C any](dataloader Dataloader[C], digInterval time.Duration, options ...TimeCapsuleDiggerOption) *TimeCapsuleDigger[C] {
-	digger := &TimeCapsuleDigger[C]{
+func NewDigger[P any](dataloader Dataloader[P], digInterval time.Duration, options ...TimeCapsuleDiggerOption) *TimeCapsuleDigger[P] {
+	digger := &TimeCapsuleDigger[P]{
 		logger:        logrus.New(),
 		dataloader:    dataloader,
 		option:        DefaultTimeCapsuleDiggerOption(),
@@ -93,12 +93,12 @@ func NewDigger[C any](dataloader Dataloader[C], digInterval time.Duration, optio
 	return digger
 }
 
-func (t *TimeCapsuleDigger[C]) SetHandler(handlerFunc func(capsule *TimeCapsule[C])) {
+func (t *TimeCapsuleDigger[P]) SetHandler(handlerFunc func(digger *TimeCapsuleDigger[P], capsule *TimeCapsule[P])) {
 	t.handlerFunc = handlerFunc
 }
 
 // Start starts the digger, which will keep polling the time capsule for new messages once the interval ticks
-func (t *TimeCapsuleDigger[C]) Start() {
+func (t *TimeCapsuleDigger[P]) Start() {
 	for {
 		if t.shouldStop {
 			return
@@ -116,8 +116,8 @@ func (t *TimeCapsuleDigger[C]) Start() {
 			}
 
 			t.logger.Debugf("TimeCapsule: dug a new capsule from dataloder %v", t.dataloader.Type())
-			if assertedCapsule, ok := any(dugCapsule).(*TimeCapsule[C]); t.handlerFunc != nil && ok && assertedCapsule != nil {
-				t.handlerFunc(assertedCapsule)
+			if assertedCapsule, ok := any(dugCapsule).(*TimeCapsule[P]); t.handlerFunc != nil && ok && assertedCapsule != nil {
+				t.handlerFunc(t, assertedCapsule)
 			}
 			if err := t.dataloader.Destroy(dugCapsule); err != nil {
 				t.logger.Errorf("TimeCapsule: failed to burn time capsule: %v", err)
@@ -133,17 +133,17 @@ func (t *TimeCapsuleDigger[C]) Start() {
 }
 
 // BuryFor bury a capsule for a specific time
-func (t *TimeCapsuleDigger[C]) BuryFor(payload C, forTimeRange time.Duration) error {
+func (t *TimeCapsuleDigger[P]) BuryFor(payload P, forTimeRange time.Duration) error {
 	return t.dataloader.BuryFor(payload, forTimeRange)
 }
 
 // BuryUtil bury a capsule until a specific time
-func (t *TimeCapsuleDigger[C]) BuryUtil(payload C, utilUnixMilliTimestamp int64) error {
+func (t *TimeCapsuleDigger[P]) BuryUtil(payload P, utilUnixMilliTimestamp int64) error {
 	return t.dataloader.BuryUtil(payload, utilUnixMilliTimestamp)
 }
 
 // Stop stops the digger
-func (t *TimeCapsuleDigger[C]) Stop() {
+func (t *TimeCapsuleDigger[P]) Stop() {
 	if t.shouldStop {
 		return
 	}
