@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v7"
 	"github.com/samber/lo"
 )
 
@@ -33,6 +33,7 @@ func (r *RedisDataloader[P]) Type() string {
 // BuryFor buries the payload into the ground for the given duration
 //
 // Equivalent to redis command:
+//
 //	ZADD sortedSetKey <now timestamp + forTimeRange> <capsule base64 string>
 func (r *RedisDataloader[P]) BuryFor(payload P, forTimeRange time.Duration) error {
 	utilUnixMilliTimestamp := time.Now().UTC().Add(forTimeRange).UnixMilli()
@@ -42,6 +43,7 @@ func (r *RedisDataloader[P]) BuryFor(payload P, forTimeRange time.Duration) erro
 // BuryUtil buries the payload into the ground util the given timestamp
 //
 // Equivalent to redis command:
+//
 //	ZADD sortedSetKey utilUnixMilliTimestamp <capsule base64 string>
 func (r *RedisDataloader[P]) BuryUtil(payload P, utilUnixMilliTimestamp int64) error {
 	now := time.Now().UTC().UnixMilli()
@@ -50,7 +52,7 @@ func (r *RedisDataloader[P]) BuryUtil(payload P, utilUnixMilliTimestamp int64) e
 }
 
 func (r *RedisDataloader[P]) bury(capsuleBase64String string, utilUnixMilliTimestamp int64) error {
-	err := r.redisClient.ZAdd(r.sortedSetKey, redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
+	err := r.redisClient.ZAdd(r.sortedSetKey, &redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
 	if err != nil {
 		return err
 	}
@@ -61,6 +63,7 @@ func (r *RedisDataloader[P]) bury(capsuleBase64String string, utilUnixMilliTimes
 // Dig digs the time capsule from the dataloader
 //
 // Equivalent to redis command flow:
+//
 //	     ZRANGEBYSCORE sortedSetKey 0 <now timestamp>
 //	                            |
 //	                      got elements?
@@ -76,7 +79,7 @@ func (r *RedisDataloader[P]) bury(capsuleBase64String string, utilUnixMilliTimes
 //	return TimeCapsule     return
 func (r *RedisDataloader[P]) Dig() (*TimeCapsule[P], error) {
 	now := time.Now().UTC()
-	members, err := r.redisClient.ZRangeByScore(r.sortedSetKey, redis.ZRangeBy{
+	members, err := r.redisClient.ZRangeByScore(r.sortedSetKey, &redis.ZRangeBy{
 		Min: "0",
 		Max: strconv.FormatInt(now.UnixMilli(), 10),
 	}).Result()
@@ -132,6 +135,7 @@ func (r *RedisDataloader[P]) Dig() (*TimeCapsule[P], error) {
 // Destroy destroys the given capsule
 //
 // Equivalent to redis command:
+//
 //	ZREM sortedSetKey <capsule base64 string>
 func (r *RedisDataloader[P]) Destroy(capsule *TimeCapsule[P]) error {
 	_, _, err := lo.AttemptWithDelay(100, 500*time.Millisecond, func(i int, d time.Duration) error {

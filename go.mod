@@ -3,7 +3,7 @@ module github.com/nekomeowww/timecapsule
 go 1.18
 
 require (
-	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-redis/redis/v7 v7.4.1
 	github.com/samber/lo v1.31.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
