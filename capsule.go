@@ -20,12 +20,14 @@ func NewTimeCapsuleFromBase64String[P any](base64Str string) (*TimeCapsule[P], e
 	}
 
 	var capsule TimeCapsule[P]
+
 	err = json.Unmarshal(decodedData, &capsule)
 	if err != nil {
 		return nil, err
 	}
 
 	capsule.base64Str = base64Str
+
 	return &capsule, nil
 }
 
@@ -36,5 +38,6 @@ func (c *TimeCapsule[any]) Base64String() string {
 
 	encodedData, _ := json.Marshal(c)
 	c.base64Str = base64.StdEncoding.EncodeToString(encodedData)
+
 	return c.base64Str
 }

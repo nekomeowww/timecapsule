@@ -1,6 +1,7 @@
 package timecapsule
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -50,8 +51,10 @@ func TestRedisDataloaderBuryFor(t *testing.T) {
 	require.NoError(err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-	err = dataloader.BuryFor("test", time.Minute)
+
+	err = dataloader.BuryFor(context.Background(), "test", time.Minute)
 	require.NoError(err)
+
 	defer func() {
 		err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
 		assert.NoError(err)
@@ -87,8 +90,10 @@ func TestRedisDataloaderBuryUtil(t *testing.T) {
 	require.NoError(err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-	err = dataloader.BuryUtil("test", time.Now().UTC().Add(time.Hour).UnixMilli())
+
+	err = dataloader.BuryUtil(context.Background(), "test", time.Now().UTC().Add(time.Hour).UnixMilli())
 	require.NoError(err)
+
 	defer func() {
 		err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
 		assert.NoError(err)
@@ -125,17 +130,19 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 
 		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-		err = dataloader.BuryUtil("shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
+
+		err = dataloader.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
 		require.NoError(err)
 
-		err = dataloader.BuryUtil("shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
+		err = dataloader.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
 		require.NoError(err)
+
 		defer func() {
 			err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
 			assert.NoError(err)
 		}()
 
-		capsule, err := dataloader.Dig()
+		capsule, err := dataloader.Dig(context.Background())
 		require.NoError(err)
 		require.NotNil(capsule)
 
@@ -158,14 +165,16 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 
 		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-		err = dataloader.BuryUtil("shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
+
+		err = dataloader.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
 		require.NoError(err)
+
 		defer func() {
 			err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
 			assert.NoError(err)
 		}()
 
-		dugCapsule, err := dataloader.Dig()
+		dugCapsule, err := dataloader.Dig(context.Background())
 		require.NoError(err)
 		require.Nil(dugCapsule)
 
@@ -199,14 +208,15 @@ func TestRedisDataloaderDestroy(t *testing.T) {
 	require.NoError(err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-	err = dataloader.BuryUtil("shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
+
+	err = dataloader.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
 	require.NoError(err)
 
-	capsule, err := dataloader.Dig()
+	capsule, err := dataloader.Dig(context.Background())
 	require.NoError(err)
 	require.NotNil(capsule)
 
-	err = dataloader.Destroy(capsule)
+	err = dataloader.Destroy(context.Background(), capsule)
 	require.NoError(err)
 
 	mems, err := dataloader.redisClient.ZRangeWithScores(sortedSetKey, 0, -1).Result()

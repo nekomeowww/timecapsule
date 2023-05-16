@@ -2,14 +2,16 @@ package timecapsule
 
 import (
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 type Dataloader[P any] interface {
 	Type() string
 
-	BuryFor(payload P, forTimeRange time.Duration) error
-	BuryUtil(payload P, utilUnixMilliTimestamp int64) error
+	BuryFor(ctx context.Context, payload P, forTimeRange time.Duration) error
+	BuryUtil(ctx context.Context, payload P, utilUnixMilliTimestamp int64) error
 
-	Dig() (capsules *TimeCapsule[P], err error)
-	Destroy(capsule *TimeCapsule[P]) error
+	Dig(ctx context.Context) (capsules *TimeCapsule[P], err error)
+	Destroy(ctx context.Context, capsule *TimeCapsule[P]) error
 }

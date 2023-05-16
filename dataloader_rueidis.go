@@ -1,35 +1,33 @@
 package timecapsule
 
 import (
-	"errors"
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/redis/rueidis"
 	"github.com/samber/lo"
 	"golang.org/x/net/context"
 )
 
 // RedisDataloader is a dataloader that loads data from redis.
-type RedisDataloader[P any] struct {
-	sortedSetKey string
-	redisClient  *redis.Client
+type RueidisDataloader[P any] struct {
+	sortedSetKey  string
+	rueidisClient rueidis.Client
 }
 
-// static check implementation.
-var _ Dataloader[any] = (*RedisDataloader[any])(nil)
+var _ Dataloader[any] = (*RueidisDataloader[any])(nil)
 
-// NewRedisDataloader creates a new RedisDataloader.
-func NewRedisDataloader[P any](sortedSetKey string, redisClient *redis.Client) *RedisDataloader[P] {
-	return &RedisDataloader[P]{
-		sortedSetKey: sortedSetKey,
-		redisClient:  redisClient,
+// NewRueidisDataloader creates a new RueidisDataloader.
+func NewRueidisDataloader[P any](sortedSetKey string, redisClient rueidis.Client) *RueidisDataloader[P] {
+	return &RueidisDataloader[P]{
+		sortedSetKey:  sortedSetKey,
+		rueidisClient: redisClient,
 	}
 }
 
 // Type returns the type of the dataloader.
-func (r *RedisDataloader[P]) Type() string {
-	return "Redis"
+func (r *RueidisDataloader[P]) Type() string {
+	return "Rueidis"
 }
 
 // BuryFor buries the payload into the ground for the given duration
@@ -37,7 +35,7 @@ func (r *RedisDataloader[P]) Type() string {
 // Equivalent to redis command:
 //
 //	ZADD sortedSetKey <now timestamp + forTimeRange> <capsule base64 string>
-func (r *RedisDataloader[P]) BuryFor(ctx context.Context, payload P, forTimeRange time.Duration) error {
+func (r *RueidisDataloader[P]) BuryFor(ctx context.Context, payload P, forTimeRange time.Duration) error {
 	utilUnixMilliTimestamp := time.Now().UTC().Add(forTimeRange).UnixMilli()
 	return r.BuryUtil(ctx, payload, utilUnixMilliTimestamp)
 }
@@ -47,22 +45,20 @@ func (r *RedisDataloader[P]) BuryFor(ctx context.Context, payload P, forTimeRang
 // Equivalent to redis command:
 //
 //	ZADD sortedSetKey utilUnixMilliTimestamp <capsule base64 string>
-func (r *RedisDataloader[P]) BuryUtil(ctx context.Context, payload P, utilUnixMilliTimestamp int64) error {
+func (r *RueidisDataloader[P]) BuryUtil(ctx context.Context, payload P, utilUnixMilliTimestamp int64) error {
 	now := time.Now().UTC().UnixMilli()
 	newCapsule := TimeCapsule[any]{Payload: payload, BuriedAt: now}
 
 	return r.bury(ctx, newCapsule.Base64String(), utilUnixMilliTimestamp)
 }
 
-func (r *RedisDataloader[P]) bury(ctx context.Context, capsuleBase64String string, utilUnixMilliTimestamp int64) error {
-	return invoke0(ctx, func() error {
-		err := r.redisClient.ZAdd(r.sortedSetKey, &redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
-		if err != nil {
-			return err
-		}
+func (r *RueidisDataloader[P]) bury(ctx context.Context, capsuleBase64String string, utilUnixMilliTimestamp int64) error {
+	err := r.rueidisClient.Do(ctx, r.rueidisClient.B().Zadd().Key(r.sortedSetKey).ScoreMember().ScoreMember(float64(utilUnixMilliTimestamp), capsuleBase64String).Build()).Error()
+	if err != nil {
+		return err
+	}
 
-		return nil
-	})
+	return nil
 }
 
 // Dig digs the time capsule from the dataloader
@@ -82,47 +78,70 @@ func (r *RedisDataloader[P]) bury(ctx context.Context, capsuleBase64String strin
 //	           -----------------
 //	           |               |
 //	return TimeCapsule     return
-func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
+func (r *RueidisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 	now := time.Now().UTC()
 
-	members, err := r.redisClient.ZRangeByScore(r.sortedSetKey, &redis.ZRangeBy{
-		Min: "0",
-		Max: strconv.FormatInt(now.UnixMilli(), 10),
-	}).Result()
+	zrangebyscoreCmd := r.rueidisClient.
+		B().
+		Zrangebyscore().
+		Key(r.sortedSetKey).
+		Min("0").
+		Max(strconv.FormatInt(now.UnixMilli(), 10)).
+		Build()
+
+	resp := r.rueidisClient.Do(ctx, zrangebyscoreCmd)
+
+	err := resp.Error()
 	if err != nil {
-		if err == redis.Nil {
+		if rueidis.IsRedisNil(err) {
 			return nil, nil
 		}
 
+		return nil, err
+	}
+
+	members, err := resp.AsStrSlice()
+	if err != nil {
 		return nil, err
 	}
 	if len(members) == 0 {
 		return nil, nil
 	}
 
-	capsulesList, err := r.redisClient.ZPopMin(r.sortedSetKey, 1).Result()
+	zpopminCmd := r.rueidisClient.
+		B().
+		Zpopmin().
+		Key(r.sortedSetKey).
+		Count(1).
+		Build()
+
+	resp = r.rueidisClient.Do(ctx, zpopminCmd)
+
+	err = resp.Error()
 	if err != nil {
-		if err == redis.Nil {
+		if rueidis.IsRedisNil(err) {
 			return nil, nil
 		}
 
+		return nil, err
+	}
+
+	capsulesList, err := resp.AsZScores()
+	if err != nil {
 		return nil, err
 	}
 	if len(capsulesList) == 0 {
 		return nil, nil
 	}
 
-	capsuleOpeningTime := time.UnixMilli(int64(capsulesList[0].Score))
+	headCapsule := capsulesList[0]
+
+	capsuleOpeningTime := time.UnixMilli(int64(headCapsule.Score))
 	if capsuleOpeningTime.After(now) {
 		time.Sleep(10 * time.Millisecond)
 
 		_, _, err := lo.AttemptWithDelay(100, 10*time.Millisecond, func(i int, d time.Duration) error {
-			member, ok := capsulesList[0].Member.(string)
-			if !ok {
-				return errors.New("invalid capsule content")
-			}
-
-			return r.bury(ctx, member, capsuleOpeningTime.UnixMilli())
+			return r.bury(ctx, headCapsule.Member, capsuleOpeningTime.UnixMilli())
 		})
 		if err != nil {
 			return nil, err
@@ -131,12 +150,7 @@ func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 		return nil, nil
 	}
 
-	capsuleContent, ok := capsulesList[0].Member.(string)
-	if !ok {
-		return nil, err
-	}
-
-	capsule, err := NewTimeCapsuleFromBase64String[P](capsuleContent)
+	capsule, err := NewTimeCapsuleFromBase64String[P](headCapsule.Member)
 	if err != nil {
 		return nil, err
 	}
@@ -151,15 +165,17 @@ func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 // Equivalent to redis command:
 //
 //	ZREM sortedSetKey <capsule base64 string>
-func (r *RedisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule[P]) error {
+func (r *RueidisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule[P]) error {
 	_, _, err := lo.AttemptWithDelay(100, 10*time.Millisecond, func(i int, d time.Duration) error {
-		pipeline := r.redisClient.TxPipeline()
-		err := pipeline.ZRem(r.sortedSetKey, capsule.Base64String()).Err()
-		if err != nil {
-			return err
-		}
+		zremCmd := r.rueidisClient.
+			B().
+			Zrem().
+			Key(r.sortedSetKey).
+			Member(capsule.Base64String()).
+			Build()
 
-		_, err = pipeline.Exec()
+		resp := r.rueidisClient.Do(ctx, zremCmd)
+		err := resp.Error()
 		if err != nil {
 			return err
 		}
