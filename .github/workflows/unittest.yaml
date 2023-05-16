@@ -161,5 +161,5 @@ jobs:
       # 单元测试
       - name: Unit tests
         run: |
-          go test ./... -timeout 200s -coverprofile=coverage.out -covermode=atomic -p=1 -v
+          go test ./... -timeout -coverprofile=coverage.out -covermode=atomic -p=1
           go tool cover -func coverage.out

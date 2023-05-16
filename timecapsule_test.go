@@ -1,15 +1,12 @@
 package timecapsule
 
 import (
-	"net"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/redis/rueidis"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -17,28 +14,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var (
-	sortedSetKeyRedis = "test/timecapsule/redis/zset"
-	redisv5Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	redisv6Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6380")})
-	redisv7Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6381")})
-)
-
-var (
-	sortedSetKeyRueidis = "test/timecapsule/rueidis/zset"
-	rueidisv5Client     = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6379")}, DisableCache: true}))
-	rueidisv6Client     = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6380")}}))
-	rueidisv7Client     = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6381")}}))
-)
-
-var dataloders = map[string]Dataloader[any]{
-	"Redis/redis:5":   NewRedisDataloader[any](sortedSetKeyRedis, redisv5Client),
-	"Redis/redis:6":   NewRedisDataloader[any](sortedSetKeyRedis, redisv6Client),
-	"Redis/redis:7":   NewRedisDataloader[any](sortedSetKeyRedis, redisv7Client),
-	"Rueidis/redis:5": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisv5Client),
-	"Rueidis/redis:6": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisv6Client),
-	"Rueidis/redis:7": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisv7Client),
-}
+var dataloders map[string]Dataloader[any]
 
 func TestMain(m *testing.M) {
 	lo.Must0(redisv5Client.Ping(context.Background()).Err())
@@ -48,6 +24,35 @@ func TestMain(m *testing.M) {
 	lo.Must0(rueidisv5Client.Do(context.Background(), rueidisv5Client.B().Ping().Build()).Error())
 	lo.Must0(rueidisv6Client.Do(context.Background(), rueidisv6Client.B().Ping().Build()).Error())
 	lo.Must0(rueidisv7Client.Do(context.Background(), rueidisv7Client.B().Ping().Build()).Error())
+
+	redisDataloadersSlice := lo.Map(lo.MapToSlice(redisDataloaders, func(k string, v *RedisDataloader[any]) lo.Entry[string, *RedisDataloader[any]] {
+		return lo.Entry[string, *RedisDataloader[any]]{
+			Key:   k,
+			Value: v,
+		}
+	}), func(item lo.Entry[string, *RedisDataloader[any]], _ int) lo.Entry[string, Dataloader[any]] {
+		return lo.Entry[string, Dataloader[any]]{
+			Key:   item.Key,
+			Value: item.Value,
+		}
+	})
+
+	rueidisDataloadersSlice := lo.Map(lo.MapToSlice(rueidisDataloaders, func(k string, v *RueidisDataloader[any]) lo.Entry[string, *RueidisDataloader[any]] {
+		return lo.Entry[string, *RueidisDataloader[any]]{
+			Key:   k,
+			Value: v,
+		}
+	}), func(item lo.Entry[string, *RueidisDataloader[any]], _ int) lo.Entry[string, Dataloader[any]] {
+		return lo.Entry[string, Dataloader[any]]{
+			Key:   item.Key,
+			Value: item.Value,
+		}
+	})
+
+	dataloaderSlices := append(redisDataloadersSlice, rueidisDataloadersSlice...)
+	dataloders = lo.SliceToMap(dataloaderSlices, func(item lo.Entry[string, Dataloader[any]]) (string, Dataloader[any]) {
+		return item.Key, item.Value
+	})
 
 	os.Exit(m.Run())
 }
@@ -71,6 +76,8 @@ func TestTimeCapsule(t *testing.T) {
 		d := d
 
 		t.Run(k, func(t *testing.T) {
+			t.Parallel()
+
 			t.Run("NewDigger", func(t *testing.T) {
 				assert := assert.New(t)
 				require := require.New(t)
