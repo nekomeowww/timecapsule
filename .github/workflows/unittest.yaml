@@ -45,7 +45,7 @@ jobs:
         with:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-      
+
       # 代码检查潜在错误
       - name: Vet (Scan for protential mistakes)
         run: |
@@ -93,9 +93,8 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # Redis 缓存
-      redis:
-        image: redis:6
+      redisv5:
+        image: redis:5
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -103,6 +102,26 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+
+      redisv6:
+        image: redis:6
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6380:6379
+
+      redisv7:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6381:6379
 
     steps:
       # 代码签出
@@ -142,5 +161,5 @@ jobs:
       # 单元测试
       - name: Unit tests
         run: |
-          go test ./... -coverprofile=coverage.out -covermode=atomic -p=1
+          go test ./... -timeout 200s -coverprofile=coverage.out -covermode=atomic -p=1 -v
           go tool cover -func coverage.out
