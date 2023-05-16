@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Testing
 
 on:
   push:
@@ -11,54 +11,12 @@ on:
       - "**/*.md"
 
 jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      # 代码签出
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      # 设定 Go 环境
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "^1.18.0"
-          cache: true
-
-      # Get values for cache paths to be used in later steps
-      - name: Setup Go Cache PATH
-        id: go-cache-paths
-        run: |
-          echo "::set-output name=go-build::$(go env GOCACHE)"
-          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
-
-      # Cache go build cache, used to speedup go test
-      - name: Go Build Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-
-      # Cache go mod cache, used to speedup builds
-      - name: Go Mod Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-
-      # 代码检查潜在错误
-      - name: Vet (Scan for protential mistakes)
-        run: |
-          go vet ./...
   buildtest:
+    name: Build Test
     runs-on: ubuntu-latest
     steps:
-      # 代码签出
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
 
-      # 设定 Go 环境
       - uses: actions/setup-go@v3
         with:
           go-version: "^1.18.0"
@@ -85,11 +43,25 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
-      # 测试构建
       - name: Test Build
         run: go build -v
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "^1.20.0"
+          cache: true
+
+      - uses: actions/checkout@v3
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3.4.0
+
   unittest:
-    # 运行目标
+    name: Unit Tests
+
     runs-on: ubuntu-latest
 
     services:
@@ -124,13 +96,8 @@ jobs:
           - 6381:6379
 
     steps:
-      # 代码签出
-      # 代码签出
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      # 设定 Go 环境
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
@@ -158,7 +125,6 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
-      # 单元测试
       - name: Unit tests
         run: |
           go test ./... -timeout -coverprofile=coverage.out -covermode=atomic -p=1

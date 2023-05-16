@@ -1,15 +1,15 @@
 linters:
   enable:
-    # - contextcheck # due to https://github.com/golangci/golangci-lint/issues/3086#issuecomment-1475232706
+    - contextcheck
     - errcheck
     - gosimple
-    # - govet # due to https://github.com/golangci/golangci-lint/issues/3086#issuecomment-1475232706
+    - govet
     - ineffassign
     - staticcheck
     - typecheck
     - unused
 
-    # - bodyclose # due to https://github.com/golangci/golangci-lint/issues/3086#issuecomment-1475232706
+    - bodyclose
     - containedctx
     - depguard
     - dupl
@@ -25,8 +25,8 @@ linters:
     - gosec
     - musttag
     - nestif
-    # - nilerr # due to https://github.com/golangci/golangci-lint/issues/3086#issuecomment-1475232706
-    # - noctx # due to https://github.com/golangci/golangci-lint/issues/3086#issuecomment-1475232706
+    - nilerr
+    - noctx
     - nolintlint
     - nosprintfhostport
     - prealloc
@@ -36,7 +36,7 @@ linters:
     - tenv
     - testableexamples
     - unconvert
-    # - unparam # due to https://github.com/golangci/golangci-lint/issues/3086#issuecomment-1475232706
+    - unparam
     - usestdlibvars
     - whitespace
     - wsl
