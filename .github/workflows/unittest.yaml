@@ -127,5 +127,5 @@ jobs:
 
       - name: Unit tests
         run: |
-          go test ./... -timeout -coverprofile=coverage.out -covermode=atomic -p=1
+          go test ./... -coverprofile=coverage.out -covermode=atomic -p=1
           go tool cover -func coverage.out
