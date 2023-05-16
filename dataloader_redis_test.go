@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ func TestNewRedisDataloader(t *testing.T) {
 	sortedSetKey := "test/timecapsule/redis/zset"
 
 	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err := redisClient.Ping().Err()
+	err := redisClient.Ping(context.Background()).Err()
 	require.NoError(t, err)
 
 	require.NotPanics(t, func() {
@@ -31,7 +31,7 @@ func TestRedisDataloaderType(t *testing.T) {
 	sortedSetKey := "test/timecapsule/redis/zset"
 
 	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err := redisClient.Ping().Err()
+	err := redisClient.Ping(context.Background()).Err()
 	require.NoError(t, err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
@@ -47,7 +47,7 @@ func TestRedisDataloaderBuryFor(t *testing.T) {
 
 	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err = redisClient.Ping().Err()
+	err = redisClient.Ping(context.Background()).Err()
 	require.NoError(err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
@@ -56,15 +56,15 @@ func TestRedisDataloaderBuryFor(t *testing.T) {
 	require.NoError(err)
 
 	defer func() {
-		err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
+		err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
 		assert.NoError(err)
 	}()
 
-	memsCount, err := dataloader.redisClient.ZCount(sortedSetKey, "-inf", "+inf").Result()
+	memsCount, err := dataloader.redisClient.ZCount(context.Background(), sortedSetKey, "-inf", "+inf").Result()
 	require.NoError(err)
 	assert.Equal(int64(1), memsCount)
 
-	mems, err := dataloader.redisClient.ZRangeWithScores(sortedSetKey, 0, -1).Result()
+	mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
 	require.NoError(err)
 	require.Len(mems, 1)
 
@@ -86,7 +86,7 @@ func TestRedisDataloaderBuryUtil(t *testing.T) {
 
 	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err = redisClient.Ping().Err()
+	err = redisClient.Ping(context.Background()).Err()
 	require.NoError(err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
@@ -95,15 +95,15 @@ func TestRedisDataloaderBuryUtil(t *testing.T) {
 	require.NoError(err)
 
 	defer func() {
-		err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
+		err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
 		assert.NoError(err)
 	}()
 
-	memsCount, err := dataloader.redisClient.ZCount(sortedSetKey, "-inf", "+inf").Result()
+	memsCount, err := dataloader.redisClient.ZCount(context.Background(), sortedSetKey, "-inf", "+inf").Result()
 	require.NoError(err)
 	assert.Equal(int64(1), memsCount)
 
-	mems, err := dataloader.redisClient.ZRangeWithScores(sortedSetKey, 0, -1).Result()
+	mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
 	require.NoError(err)
 	require.Len(mems, 1)
 
@@ -126,7 +126,7 @@ func TestRedisDataloaderDig(t *testing.T) {
 
 		sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-		err = redisClient.Ping().Err()
+		err = redisClient.Ping(context.Background()).Err()
 		require.NoError(err)
 
 		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
@@ -138,7 +138,7 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 
 		defer func() {
-			err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
+			err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
 			assert.NoError(err)
 		}()
 
@@ -161,7 +161,7 @@ func TestRedisDataloaderDig(t *testing.T) {
 
 		sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-		err = redisClient.Ping().Err()
+		err = redisClient.Ping(context.Background()).Err()
 		require.NoError(err)
 
 		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
@@ -170,7 +170,7 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 
 		defer func() {
-			err = dataloader.redisClient.Del(dataloader.sortedSetKey).Err()
+			err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
 			assert.NoError(err)
 		}()
 
@@ -178,11 +178,11 @@ func TestRedisDataloaderDig(t *testing.T) {
 		require.NoError(err)
 		require.Nil(dugCapsule)
 
-		memsCount, err := dataloader.redisClient.ZCount(sortedSetKey, "-inf", "+inf").Result()
+		memsCount, err := dataloader.redisClient.ZCount(context.Background(), sortedSetKey, "-inf", "+inf").Result()
 		require.NoError(err)
 		assert.Equal(int64(1), memsCount)
 
-		mems, err := dataloader.redisClient.ZRangeWithScores(sortedSetKey, 0, -1).Result()
+		mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
 		require.NoError(err)
 		require.Len(mems, 1)
 
@@ -204,7 +204,7 @@ func TestRedisDataloaderDestroy(t *testing.T) {
 
 	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err = redisClient.Ping().Err()
+	err = redisClient.Ping(context.Background()).Err()
 	require.NoError(err)
 
 	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
@@ -219,7 +219,7 @@ func TestRedisDataloaderDestroy(t *testing.T) {
 	err = dataloader.Destroy(context.Background(), capsule)
 	require.NoError(err)
 
-	mems, err := dataloader.redisClient.ZRangeWithScores(sortedSetKey, 0, -1).Result()
+	mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
 	require.NoError(err)
 	require.Len(mems, 0)
 }

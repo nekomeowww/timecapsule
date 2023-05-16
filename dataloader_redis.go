@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	"golang.org/x/net/context"
 )
@@ -56,7 +56,7 @@ func (r *RedisDataloader[P]) BuryUtil(ctx context.Context, payload P, utilUnixMi
 
 func (r *RedisDataloader[P]) bury(ctx context.Context, capsuleBase64String string, utilUnixMilliTimestamp int64) error {
 	return invoke0(ctx, func() error {
-		err := r.redisClient.ZAdd(r.sortedSetKey, &redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
+		err := r.redisClient.ZAdd(ctx, r.sortedSetKey, redis.Z{Score: float64(utilUnixMilliTimestamp), Member: capsuleBase64String}).Err()
 		if err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func (r *RedisDataloader[P]) bury(ctx context.Context, capsuleBase64String strin
 func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 	now := time.Now().UTC()
 
-	members, err := r.redisClient.ZRangeByScore(r.sortedSetKey, &redis.ZRangeBy{
+	members, err := r.redisClient.ZRangeByScore(ctx, r.sortedSetKey, &redis.ZRangeBy{
 		Min: "0",
 		Max: strconv.FormatInt(now.UnixMilli(), 10),
 	}).Result()
@@ -100,7 +100,7 @@ func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 		return nil, nil
 	}
 
-	capsulesList, err := r.redisClient.ZPopMin(r.sortedSetKey, 1).Result()
+	capsulesList, err := r.redisClient.ZPopMin(ctx, r.sortedSetKey, 1).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, nil
@@ -154,12 +154,12 @@ func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 func (r *RedisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule[P]) error {
 	_, _, err := lo.AttemptWithDelay(100, 10*time.Millisecond, func(i int, d time.Duration) error {
 		pipeline := r.redisClient.TxPipeline()
-		err := pipeline.ZRem(r.sortedSetKey, capsule.Base64String()).Err()
+		err := pipeline.ZRem(ctx, r.sortedSetKey, capsule.Base64String()).Err()
 		if err != nil {
 			return err
 		}
 
-		_, err = pipeline.Exec()
+		_, err = pipeline.Exec(ctx)
 		if err != nil {
 			return err
 		}

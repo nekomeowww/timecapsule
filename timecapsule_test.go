@@ -1,7 +1,6 @@
 package timecapsule
 
 import (
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -9,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v7"
+	"github.com/redis/go-redis/v9"
 	"github.com/redis/rueidis"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
@@ -20,24 +19,35 @@ import (
 
 var (
 	sortedSetKeyRedis = "test/timecapsule/redis/zset"
-	redisClient       = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
+	redisv5Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
+	redisv6Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6380")})
+	redisv7Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6381")})
 )
 
 var (
 	sortedSetKeyRueidis = "test/timecapsule/rueidis/zset"
-	rueidisClient       = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6379")}}))
+	rueidisv5Client     = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6379")}, DisableCache: true}))
+	rueidisv6Client     = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6380")}}))
+	rueidisv7Client     = lo.Must(rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{net.JoinHostPort("localhost", "6381")}}))
 )
 
 var dataloders = map[string]Dataloader[any]{
-	"Redis":   NewRedisDataloader[any](sortedSetKeyRedis, redisClient),
-	"Rueidis": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisClient),
+	"Redis/redis:5":   NewRedisDataloader[any](sortedSetKeyRedis, redisv5Client),
+	"Redis/redis:6":   NewRedisDataloader[any](sortedSetKeyRedis, redisv6Client),
+	"Redis/redis:7":   NewRedisDataloader[any](sortedSetKeyRedis, redisv7Client),
+	"Rueidis/redis:5": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisv5Client),
+	"Rueidis/redis:6": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisv6Client),
+	"Rueidis/redis:7": NewRueidisDataloader[any](sortedSetKeyRueidis, rueidisv7Client),
 }
 
 func TestMain(m *testing.M) {
-	err := redisClient.Ping().Err()
-	if err != nil {
-		log.Fatal(err)
-	}
+	lo.Must0(redisv5Client.Ping(context.Background()).Err())
+	lo.Must0(redisv6Client.Ping(context.Background()).Err())
+	lo.Must0(redisv7Client.Ping(context.Background()).Err())
+
+	lo.Must0(rueidisv5Client.Do(context.Background(), rueidisv5Client.B().Ping().Build()).Error())
+	lo.Must0(rueidisv6Client.Do(context.Background(), rueidisv6Client.B().Ping().Build()).Error())
+	lo.Must0(rueidisv7Client.Do(context.Background(), rueidisv7Client.B().Ping().Build()).Error())
 
 	os.Exit(m.Run())
 }
@@ -45,7 +55,7 @@ func TestMain(m *testing.M) {
 func cleanupKey(t *testing.T, dataloder Dataloader[any]) {
 	redisDataloader, ok := dataloder.(*RedisDataloader[any])
 	if ok {
-		err := redisDataloader.redisClient.Del(redisDataloader.sortedSetKey).Err()
+		err := redisDataloader.redisClient.Del(context.Background(), redisDataloader.sortedSetKey).Err()
 		assert.NoError(t, err)
 	}
 
@@ -161,7 +171,7 @@ func TestTimeCapsule(t *testing.T) {
 				defer cleanupKey(t, d)
 
 				waitGroup.Wait()
-				time.Sleep(30 * time.Second)
+				time.Sleep(15 * time.Second)
 				require.Equal(1000, len(handlerProceeded))
 
 				for _, h := range handlerProceeded {
