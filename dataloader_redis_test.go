@@ -14,212 +14,188 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewRedisDataloader(t *testing.T) {
-	sortedSetKey := "test/timecapsule/redis/zset"
+var (
+	sortedSetKeyRedis = "test/timecapsule/redis/zset"
+	redisv5Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
+	redisv6Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6380")})
+	redisv7Client     = redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6381")})
+)
 
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err := redisClient.Ping(context.Background()).Err()
-	require.NoError(t, err)
-
-	require.NotPanics(t, func() {
-		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-		assert.Equal(t, sortedSetKey, dataloader.sortedSetKey)
-	})
+var redisDataloaders = map[string]*RedisDataloader[any]{
+	"Redis/redis:5": NewRedisDataloader[any](sortedSetKeyRedis, redisv5Client),
+	"Redis/redis:6": NewRedisDataloader[any](sortedSetKeyRedis, redisv6Client),
+	"Redis/redis:7": NewRedisDataloader[any](sortedSetKeyRedis, redisv7Client),
 }
 
-func TestRedisDataloaderType(t *testing.T) {
-	sortedSetKey := "test/timecapsule/redis/zset"
+func TestRedisDataloader(t *testing.T) {
+	for k, d := range redisDataloaders {
+		d := d
 
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err := redisClient.Ping(context.Background()).Err()
-	require.NoError(t, err)
+		t.Run(k, func(t *testing.T) {
+			t.Run("Type", func(t *testing.T) {
+				assert.Equal(t, "Redis", d.Type())
+			})
 
-	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-	assert.Equal(t, "Redis", dataloader.Type())
-}
+			t.Run("BuryFor", func(t *testing.T) {
+				assert := assert.New(t)
+				require := require.New(t)
 
-func TestRedisDataloaderBuryFor(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+				randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+				require.NoError(err)
 
-	randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
-	require.NoError(err)
+				d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 
-	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err = redisClient.Ping(context.Background()).Err()
-	require.NoError(err)
+				err = d.BuryFor(context.Background(), "test", time.Minute)
+				require.NoError(err)
 
-	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
+				defer func() {
+					err = d.redisClient.Del(context.Background(), d.sortedSetKey).Err()
+					assert.NoError(err)
+				}()
 
-	err = dataloader.BuryFor(context.Background(), "test", time.Minute)
-	require.NoError(err)
+				memsCount, err := d.redisClient.ZCount(context.Background(), d.sortedSetKey, "-inf", "+inf").Result()
+				require.NoError(err)
+				assert.Equal(int64(1), memsCount)
 
-	defer func() {
-		err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
-		assert.NoError(err)
-	}()
+				mems, err := d.redisClient.ZRangeWithScores(context.Background(), d.sortedSetKey, 0, -1).Result()
+				require.NoError(err)
+				require.Len(mems, 1)
 
-	memsCount, err := dataloader.redisClient.ZCount(context.Background(), sortedSetKey, "-inf", "+inf").Result()
-	require.NoError(err)
-	assert.Equal(int64(1), memsCount)
+				capsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
+				require.NoError(err)
 
-	mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
-	require.NoError(err)
-	require.Len(mems, 1)
+				now := time.Now().UTC()
+				assert.GreaterOrEqual(now.Add(time.Minute).UnixMilli(), int64(mems[0].Score))
+				assert.Equal("test", capsule.Payload)
+				assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
+			})
 
-	capsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
-	require.NoError(err)
+			t.Run("BuryUtil", func(t *testing.T) {
+				assert := assert.New(t)
+				require := require.New(t)
 
-	now := time.Now().UTC()
-	assert.GreaterOrEqual(now.Add(time.Minute).UnixMilli(), int64(mems[0].Score))
-	assert.Equal("test", capsule.Payload)
-	assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
-}
+				randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+				require.NoError(err)
 
-func TestRedisDataloaderBuryUtil(t *testing.T) {
-	assert := assert.New(t)
-	require := require.New(t)
+				d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 
-	randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
-	require.NoError(err)
+				err = d.BuryUtil(context.Background(), "test", time.Now().UTC().Add(time.Hour).UnixMilli())
+				require.NoError(err)
 
-	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err = redisClient.Ping(context.Background()).Err()
-	require.NoError(err)
+				defer func() {
+					err = d.redisClient.Del(context.Background(), d.sortedSetKey).Err()
+					assert.NoError(err)
+				}()
 
-	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
+				memsCount, err := d.redisClient.ZCount(context.Background(), d.sortedSetKey, "-inf", "+inf").Result()
+				require.NoError(err)
+				assert.Equal(int64(1), memsCount)
 
-	err = dataloader.BuryUtil(context.Background(), "test", time.Now().UTC().Add(time.Hour).UnixMilli())
-	require.NoError(err)
+				mems, err := d.redisClient.ZRangeWithScores(context.Background(), d.sortedSetKey, 0, -1).Result()
+				require.NoError(err)
+				require.Len(mems, 1)
 
-	defer func() {
-		err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
-		assert.NoError(err)
-	}()
+				capsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
+				require.NoError(err)
 
-	memsCount, err := dataloader.redisClient.ZCount(context.Background(), sortedSetKey, "-inf", "+inf").Result()
-	require.NoError(err)
-	assert.Equal(int64(1), memsCount)
+				now := time.Now().UTC()
+				assert.GreaterOrEqual(now.Add(time.Hour).UnixMilli(), int64(mems[0].Score))
+				assert.Equal("test", capsule.Payload)
+				assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
+			})
 
-	mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
-	require.NoError(err)
-	require.Len(mems, 1)
+			t.Run("Dig", func(t *testing.T) {
+				t.Run("DugOutCorrectCapsule", func(t *testing.T) {
+					assert := assert.New(t)
+					require := require.New(t)
 
-	capsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
-	require.NoError(err)
+					randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+					require.NoError(err)
 
-	now := time.Now().UTC()
-	assert.GreaterOrEqual(now.Add(time.Hour).UnixMilli(), int64(mems[0].Score))
-	assert.Equal("test", capsule.Payload)
-	assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
-}
+					d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 
-func TestRedisDataloaderDig(t *testing.T) {
-	t.Run("DugOutCorrectCapsule", func(t *testing.T) {
-		assert := assert.New(t)
-		require := require.New(t)
+					err = d.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
+					require.NoError(err)
 
-		randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
-		require.NoError(err)
+					err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
+					require.NoError(err)
 
-		sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-		err = redisClient.Ping(context.Background()).Err()
-		require.NoError(err)
+					defer func() {
+						err = d.redisClient.Del(context.Background(), d.sortedSetKey).Err()
+						assert.NoError(err)
+					}()
 
-		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
+					capsule, err := d.Dig(context.Background())
+					require.NoError(err)
+					require.NotNil(capsule)
 
-		err = dataloader.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
-		require.NoError(err)
+					now := time.Now().UTC()
+					assert.Equal("shouldBeDugOut", capsule.Payload)
+					assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
+					assert.GreaterOrEqual(now.UnixMilli(), capsule.DugOutAt)
+				})
 
-		err = dataloader.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
-		require.NoError(err)
+				t.Run("DugOutInCorrectOpeningTimeCapsule", func(t *testing.T) {
+					assert := assert.New(t)
+					require := require.New(t)
 
-		defer func() {
-			err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
-			assert.NoError(err)
-		}()
+					randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+					require.NoError(err)
 
-		capsule, err := dataloader.Dig(context.Background())
-		require.NoError(err)
-		require.NotNil(capsule)
+					d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 
-		now := time.Now().UTC()
-		assert.Equal("shouldBeDugOut", capsule.Payload)
-		assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
-		assert.GreaterOrEqual(now.UnixMilli(), capsule.DugOutAt)
-	})
+					err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
+					require.NoError(err)
 
-	t.Run("DugOutInCorrectOpeningTimeCapsule", func(t *testing.T) {
-		assert := assert.New(t)
-		require := require.New(t)
+					defer func() {
+						err = d.redisClient.Del(context.Background(), d.sortedSetKey).Err()
+						assert.NoError(err)
+					}()
 
-		randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
-		require.NoError(err)
+					dugCapsule, err := d.Dig(context.Background())
+					require.NoError(err)
+					require.Nil(dugCapsule)
 
-		sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-		redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-		err = redisClient.Ping(context.Background()).Err()
-		require.NoError(err)
+					memsCount, err := d.redisClient.ZCount(context.Background(), d.sortedSetKey, "-inf", "+inf").Result()
+					require.NoError(err)
+					assert.Equal(int64(1), memsCount)
 
-		dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
+					mems, err := d.redisClient.ZRangeWithScores(context.Background(), d.sortedSetKey, 0, -1).Result()
+					require.NoError(err)
+					require.Len(mems, 1)
 
-		err = dataloader.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
-		require.NoError(err)
+					requeuedCapsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
+					require.NoError(err)
 
-		defer func() {
-			err = dataloader.redisClient.Del(context.Background(), dataloader.sortedSetKey).Err()
-			assert.NoError(err)
-		}()
+					now := time.Now().UTC()
+					assert.Equal("shouldNotBeDugOut", requeuedCapsule.Payload)
+					assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.BuriedAt)
+					assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.DugOutAt)
+				})
+			})
 
-		dugCapsule, err := dataloader.Dig(context.Background())
-		require.NoError(err)
-		require.Nil(dugCapsule)
+			t.Run("Destroy", func(t *testing.T) {
+				require := require.New(t)
 
-		memsCount, err := dataloader.redisClient.ZCount(context.Background(), sortedSetKey, "-inf", "+inf").Result()
-		require.NoError(err)
-		assert.Equal(int64(1), memsCount)
+				randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+				require.NoError(err)
 
-		mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
-		require.NoError(err)
-		require.Len(mems, 1)
+				d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 
-		requeuedCapsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
-		require.NoError(err)
+				err = d.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
+				require.NoError(err)
 
-		now := time.Now().UTC()
-		assert.Equal("shouldNotBeDugOut", requeuedCapsule.Payload)
-		assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.BuriedAt)
-		assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.DugOutAt)
-	})
-}
+				capsule, err := d.Dig(context.Background())
+				require.NoError(err)
+				require.NotNil(capsule)
 
-func TestRedisDataloaderDestroy(t *testing.T) {
-	require := require.New(t)
+				err = d.Destroy(context.Background(), capsule)
+				require.NoError(err)
 
-	randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
-	require.NoError(err)
-
-	sortedSetKey := fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
-	redisClient := redis.NewClient(&redis.Options{Addr: net.JoinHostPort("localhost", "6379")})
-	err = redisClient.Ping(context.Background()).Err()
-	require.NoError(err)
-
-	dataloader := NewRedisDataloader[any](sortedSetKey, redisClient)
-
-	err = dataloader.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
-	require.NoError(err)
-
-	capsule, err := dataloader.Dig(context.Background())
-	require.NoError(err)
-	require.NotNil(capsule)
-
-	err = dataloader.Destroy(context.Background(), capsule)
-	require.NoError(err)
-
-	mems, err := dataloader.redisClient.ZRangeWithScores(context.Background(), sortedSetKey, 0, -1).Result()
-	require.NoError(err)
-	require.Len(mems, 0)
+				mems, err := d.redisClient.ZRangeWithScores(context.Background(), d.sortedSetKey, 0, -1).Result()
+				require.NoError(err)
+				require.Len(mems, 0)
+			})
+		})
+	}
 }
