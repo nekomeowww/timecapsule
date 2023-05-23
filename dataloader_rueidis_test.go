@@ -76,7 +76,6 @@ func TestRueidisDataloder(t *testing.T) {
 				now := time.Now().UTC()
 				assert.GreaterOrEqual(now.Add(time.Minute).UnixMilli(), int64(mems[0].Score))
 				assert.Equal("test", capsule.Payload)
-				assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
 			})
 
 			t.Run("BuryUtil", func(t *testing.T) {
@@ -118,7 +117,6 @@ func TestRueidisDataloder(t *testing.T) {
 				now := time.Now().UTC()
 				assert.GreaterOrEqual(now.Add(time.Hour).UnixMilli(), int64(mems[0].Score))
 				assert.Equal("test", capsule.Payload)
-				assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
 			})
 
 			t.Run("Dig", func(t *testing.T) {
@@ -147,7 +145,6 @@ func TestRueidisDataloder(t *testing.T) {
 
 					now := time.Now().UTC()
 					assert.Equal("shouldBeDugOut", capsule.Payload)
-					assert.GreaterOrEqual(now.UnixMilli(), capsule.BuriedAt)
 					assert.GreaterOrEqual(now.UnixMilli(), capsule.DugOutAt)
 				})
 
@@ -192,7 +189,6 @@ func TestRueidisDataloder(t *testing.T) {
 
 					now := time.Now().UTC()
 					assert.Equal("shouldNotBeDugOut", requeuedCapsule.Payload)
-					assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.BuriedAt)
 					assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.DugOutAt)
 				})
 			})

@@ -6,10 +6,8 @@ import (
 )
 
 type TimeCapsule[P any] struct {
-	Payload  P     `json:"payload"`
-	BuriedAt int64 `json:"buriedAt"`
-	DugOutAt int64 `json:"dugOutAt"`
-
+	Payload   P     `json:"payload"`
+	DugOutAt  int64 `json:"-"`
 	base64Str string
 }
 

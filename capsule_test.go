@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,9 +14,7 @@ func TestNewTimeCapsuleFromBase64String(t *testing.T) {
 	require := require.New(t)
 
 	capsule := TimeCapsule[string]{
-		Payload:  "hello",
-		BuriedAt: time.Now().UnixMilli(),
-		DugOutAt: time.Now().UnixMilli(),
+		Payload: "hello",
 	}
 
 	jsonData, err := json.Marshal(capsule)

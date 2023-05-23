@@ -46,9 +46,7 @@ func (r *RueidisDataloader[P]) BuryFor(ctx context.Context, payload P, forTimeRa
 //
 //	ZADD sortedSetKey utilUnixMilliTimestamp <capsule base64 string>
 func (r *RueidisDataloader[P]) BuryUtil(ctx context.Context, payload P, utilUnixMilliTimestamp int64) error {
-	now := time.Now().UTC().UnixMilli()
-	newCapsule := TimeCapsule[any]{Payload: payload, BuriedAt: now}
-
+	newCapsule := TimeCapsule[any]{Payload: payload}
 	return r.bury(ctx, newCapsule.Base64String(), utilUnixMilliTimestamp)
 }
 
