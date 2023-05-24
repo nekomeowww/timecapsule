@@ -47,7 +47,7 @@ func (r *RedisDataloader[P]) BuryFor(payload P, forTimeRange time.Duration) erro
 //	ZADD sortedSetKey utilUnixMilliTimestamp <capsule base64 string>
 func (r *RedisDataloader[P]) BuryUtil(payload P, utilUnixMilliTimestamp int64) error {
 	now := time.Now().UTC().UnixMilli()
-	newCapsule := TimeCapsule[any]{Payload: payload, BuriedAt: now}
+	newCapsule := TimeCapsule[P]{Payload: payload, BuriedAt: now}
 	return r.bury(newCapsule.Base64String(), utilUnixMilliTimestamp)
 }
 

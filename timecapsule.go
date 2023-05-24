@@ -77,8 +77,11 @@ type TimeCapsuleDigger[P any] struct {
 //
 // topicKey is the key of the topic of time capsules, in most cases it will be the set key such
 // as a Redis sorted set key or a Kafka topic
+//
 //	topicKey: string
+//
 // digInterval is the interval of digging a new capsule
+//
 //	digInterval: time.Duration
 func NewDigger[P any](dataloader Dataloader[P], digInterval time.Duration, options ...TimeCapsuleDiggerOption) *TimeCapsuleDigger[P] {
 	digger := &TimeCapsuleDigger[P]{
@@ -116,13 +119,14 @@ func (t *TimeCapsuleDigger[P]) Start() {
 			}
 
 			t.logger.Debugf("TimeCapsule: dug a new capsule from dataloder %v", t.dataloader.Type())
-			if assertedCapsule, ok := any(dugCapsule).(*TimeCapsule[P]); t.handlerFunc != nil && ok && assertedCapsule != nil {
-				t.handlerFunc(t, assertedCapsule)
-			}
+
 			if err := t.dataloader.Destroy(dugCapsule); err != nil {
 				t.logger.Errorf("TimeCapsule: failed to burn time capsule: %v", err)
 			} else {
 				t.logger.Debugf("TimeCapsule: burned a capsule from dataloder %v", t.dataloader.Type())
+			}
+			if t.handlerFunc != nil {
+				t.handlerFunc(t, dugCapsule)
 			}
 		case <-t.stopChan:
 			return
