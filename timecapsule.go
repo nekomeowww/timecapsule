@@ -153,12 +153,10 @@ func (t *TimeCapsuleDigger[P]) Start() {
 
 			t.logger.Debugf("[TimeCapsule] dug a new capsule from dataloader %v", t.dataloader.Type())
 
-			assertedCapsule, ok := any(dugCapsule).(*TimeCapsule[P])
-			if ok && t.handlerFunc != nil && assertedCapsule != nil {
-				t.handlerFunc(t, assertedCapsule)
-			}
-
 			t.destroy(dugCapsule)
+			if t.handlerFunc != nil {
+				t.handlerFunc(t, dugCapsule)
+			}
 		case <-ctx.Done():
 			return
 		default:
