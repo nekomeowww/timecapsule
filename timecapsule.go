@@ -3,7 +3,6 @@ package timecapsule
 import (
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -58,7 +57,6 @@ func mergeTimeCapsuleDiggerOption(original *TimeCapsuleDiggerOption, options ...
 // once TimeCapsuleDigger.Start() is called, and will stop once TimeCapsuleDigger.Stop()
 // is called.
 type TimeCapsuleDigger[P any] struct {
-	logger     TimeCapsuleLogger
 	dataloader Dataloader[P]
 	option     TimeCapsuleDiggerOption
 
@@ -85,7 +83,6 @@ type TimeCapsuleDigger[P any] struct {
 //	digInterval: time.Duration
 func NewDigger[P any](dataloader Dataloader[P], digInterval time.Duration, options ...TimeCapsuleDiggerOption) *TimeCapsuleDigger[P] {
 	digger := &TimeCapsuleDigger[P]{
-		logger:        logrus.New(),
 		dataloader:    dataloader,
 		option:        DefaultTimeCapsuleDiggerOption(),
 		diggingTicker: time.NewTicker(digInterval),
@@ -116,7 +113,7 @@ func (t *TimeCapsuleDigger[P]) dig() *TimeCapsule[P] {
 
 	dugCapsule, err := t.dataloader.Dig(ctx)
 	if err != nil {
-		t.logger.Errorf("[TimeCapsule] failed to dig time capsule from dataloader %v: %v", t.dataloader.Type(), err)
+		t.option.Logger.Errorf("[TimeCapsule] failed to dig time capsule from dataloader %v: %v", t.dataloader.Type(), err)
 		return nil
 	}
 
@@ -128,9 +125,9 @@ func (t *TimeCapsuleDigger[P]) destroy(capsule *TimeCapsule[P]) {
 	defer cancel()
 
 	if err := t.dataloader.Destroy(ctx, capsule); err != nil {
-		t.logger.Errorf("[TimeCapsule] failed to burn time capsule: %v", err)
+		t.option.Logger.Errorf("[TimeCapsule] failed to burn time capsule: %v", err)
 	} else {
-		t.logger.Debugf("[TimeCapsule] burned a capsule from dataloader %v", t.dataloader.Type())
+		t.option.Logger.Debugf("[TimeCapsule] burned a capsule from dataloader %v", t.dataloader.Type())
 	}
 }
 
@@ -151,7 +148,7 @@ func (t *TimeCapsuleDigger[P]) Start() {
 				continue
 			}
 
-			t.logger.Debugf("[TimeCapsule] dug a new capsule from dataloader %v", t.dataloader.Type())
+			t.option.Logger.Debugf("[TimeCapsule] dug a new capsule from dataloader %v", t.dataloader.Type())
 
 			t.destroy(dugCapsule)
 			if t.handlerFunc != nil {
