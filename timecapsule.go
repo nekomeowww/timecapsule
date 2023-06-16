@@ -3,6 +3,8 @@ package timecapsule
 import (
 	"time"
 
+	"github.com/nekomeowww/xo/exp/channelx"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -30,6 +32,7 @@ func DefaultTimeCapsuleDiggerOption() TimeCapsuleDiggerOption {
 	return TimeCapsuleDiggerOption{
 		RetryLimit:    100,
 		RetryInterval: 500 * time.Millisecond,
+		Logger:        logrus.New(),
 	}
 }
 
@@ -64,9 +67,8 @@ type TimeCapsuleDigger[P any] struct {
 
 	// Digging ticker to notify the goroutine to dig a new capsule
 	diggingTicker *time.Ticker
-
-	cancelFunc context.CancelFunc
-	shouldStop bool
+	// Puller
+	puller *channelx.Puller[*TimeCapsule[P]]
 }
 
 // Digger creates a new TimeCapsuleDigger instance which derives from the TimeCapsule instance
@@ -89,6 +91,10 @@ func NewDigger[P any](dataloader Dataloader[P], digInterval time.Duration, optio
 	}
 
 	mergeTimeCapsuleDiggerOption(&digger.option, options...)
+
+	digger.puller = channelx.NewPuller[*TimeCapsule[P]]().
+		WithTickerChannel(digger.diggingTicker.C, func(_ time.Time) *TimeCapsule[P] { return digger.dig() }).
+		WithHandler(digger.handle)
 
 	return digger
 }
@@ -131,44 +137,26 @@ func (t *TimeCapsuleDigger[P]) destroy(capsule *TimeCapsule[P]) {
 	}
 }
 
+func (t *TimeCapsuleDigger[P]) handle(dugCapsule *TimeCapsule[P]) {
+	if dugCapsule == nil {
+		return
+	}
+
+	t.option.Logger.Debugf("[TimeCapsule] dug a new capsule from dataloader %v", t.dataloader.Type())
+
+	t.destroy(dugCapsule)
+	if t.handlerFunc != nil {
+		t.handlerFunc(t, dugCapsule)
+	}
+}
+
 // Start starts the digger, which will keep polling the time capsule for new messages once the interval ticks.
 func (t *TimeCapsuleDigger[P]) Start() {
-	var ctx context.Context
-	ctx, t.cancelFunc = context.WithCancel(context.Background())
-
-	for {
-		if t.shouldStop {
-			return
-		}
-
-		select {
-		case <-t.diggingTicker.C:
-			dugCapsule := t.dig()
-			if dugCapsule == nil {
-				continue
-			}
-
-			t.option.Logger.Debugf("[TimeCapsule] dug a new capsule from dataloader %v", t.dataloader.Type())
-
-			t.destroy(dugCapsule)
-			if t.handlerFunc != nil {
-				t.handlerFunc(t, dugCapsule)
-			}
-		case <-ctx.Done():
-			return
-		default:
-			time.Sleep(100 * time.Millisecond) // prevent busy loop
-		}
-	}
+	t.puller.StartPull(context.Background())
 }
 
 // Stop stops the digger.
 func (t *TimeCapsuleDigger[P]) Stop() {
-	if t.shouldStop {
-		return
-	}
-
-	t.shouldStop = true
 	t.diggingTicker.Stop()
-	t.cancelFunc()
+	_ = t.puller.StopPull(context.Background())
 }
