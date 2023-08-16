@@ -157,7 +157,7 @@ func TestRueidisDataloder(t *testing.T) {
 
 					d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
 
-					err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
+					err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(100*time.Millisecond).UnixMilli())
 					require.NoError(err)
 					defer func() {
 						err = d.rueidisClient.Do(context.Background(), d.rueidisClient.B().Del().Key(d.sortedSetKey).Build()).Error()
