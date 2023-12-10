@@ -170,3 +170,14 @@ func (r *RedisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule[P
 
 	return nil
 }
+
+func (r *RedisDataloader[P]) DestroyAll(ctx context.Context) error {
+	_, _, err := lo.AttemptWithDelay(100, 10*time.Millisecond, func(i int, d time.Duration) error {
+		return r.redisClient.Del(ctx, r.sortedSetKey).Err()
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
