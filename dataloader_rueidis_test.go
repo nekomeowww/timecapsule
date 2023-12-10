@@ -219,6 +219,34 @@ func TestRueidisDataloder(t *testing.T) {
 				require.NoError(err)
 				require.Len(mems, 0)
 			})
+
+			t.Run("DestroyAll", func(t *testing.T) {
+				assert := assert.New(t)
+				require := require.New(t)
+
+				randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+				require.NoError(err)
+
+				d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
+
+				err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
+				require.NoError(err)
+				defer func() {
+					err = d.rueidisClient.Do(context.Background(), d.rueidisClient.B().Del().Key(d.sortedSetKey).Build()).Error()
+					assert.NoError(err)
+				}()
+
+				err = d.DestroyAll(context.Background())
+				require.NoError(err)
+
+				zcountCmd := d.rueidisClient.B().Zcount().Key(d.sortedSetKey).Min("-inf").Max("+inf").Build()
+				resp := d.rueidisClient.Do(context.Background(), zcountCmd)
+				require.NoError(resp.Error())
+
+				memsCount, err := resp.AsInt64()
+				require.NoError(err)
+				assert.Zero(memsCount)
+			})
 		})
 	}
 }

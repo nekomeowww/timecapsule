@@ -192,6 +192,26 @@ func TestRedisDataloader(t *testing.T) {
 				require.NoError(err)
 				require.Len(mems, 0)
 			})
+
+			t.Run("DestroyAll", func(t *testing.T) {
+				assert := assert.New(t)
+				require := require.New(t)
+
+				randomSeed, err := rand.Int(rand.Reader, big.NewInt(100000))
+				require.NoError(err)
+
+				d.sortedSetKey = fmt.Sprintf("test/timecapsule/redis/zset/%d", randomSeed.Int64())
+
+				err = d.BuryUtil(context.Background(), "shouldBeDugOut", time.Now().UTC().Add(-5*time.Millisecond).UnixMilli())
+				require.NoError(err)
+
+				err = d.DestroyAll(context.Background())
+				require.NoError(err)
+
+				result, err := d.redisClient.ZCount(context.Background(), d.sortedSetKey, "-inf", "+inf").Result()
+				require.NoError(err)
+				assert.Zero(result)
+			})
 		})
 	}
 }

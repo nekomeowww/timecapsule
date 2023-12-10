@@ -186,3 +186,26 @@ func (r *RueidisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule
 
 	return nil
 }
+
+func (r *RueidisDataloader[P]) DestroyAll(ctx context.Context) error {
+	_, _, err := lo.AttemptWithDelay(100, 10*time.Millisecond, func(i int, d time.Duration) error {
+		delCmd := r.rueidisClient.
+			B().
+			Del().
+			Key(r.sortedSetKey).
+			Build()
+
+		resp := r.rueidisClient.Do(ctx, delCmd)
+		err := resp.Error()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

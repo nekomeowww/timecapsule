@@ -14,4 +14,5 @@ type Dataloader[P any] interface {
 
 	Dig(ctx context.Context) (capsules *TimeCapsule[P], err error)
 	Destroy(ctx context.Context, capsule *TimeCapsule[P]) error
+	DestroyAll(ctx context.Context) error
 }
