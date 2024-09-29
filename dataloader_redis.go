@@ -83,10 +83,7 @@ func (r *RedisDataloader[P]) bury(ctx context.Context, capsuleBase64String strin
 func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 	now := time.Now().UTC()
 
-	members, err := r.redisClient.ZRangeByScore(ctx, r.sortedSetKey, &redis.ZRangeBy{
-		Min: "0",
-		Max: strconv.FormatInt(now.UnixMilli(), 10),
-	}).Result()
+	members, err := r.redisClient.ZCount(ctx, r.sortedSetKey, "0", strconv.FormatInt(now.UnixMilli(), 10)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, nil
@@ -94,7 +91,7 @@ func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 
 		return nil, err
 	}
-	if len(members) == 0 {
+	if members == 0 {
 		return nil, nil
 	}
 
@@ -152,6 +149,7 @@ func (r *RedisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error) {
 func (r *RedisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule[P]) error {
 	_, _, err := lo.AttemptWithDelay(100, 10*time.Millisecond, func(i int, d time.Duration) error {
 		pipeline := r.redisClient.TxPipeline()
+
 		err := pipeline.ZRem(ctx, r.sortedSetKey, capsule.Base64String()).Err()
 		if err != nil {
 			return err

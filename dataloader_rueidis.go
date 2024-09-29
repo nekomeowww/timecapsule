@@ -81,7 +81,7 @@ func (r *RueidisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error)
 
 	zrangebyscoreCmd := r.rueidisClient.
 		B().
-		Zrangebyscore().
+		Zcount().
 		Key(r.sortedSetKey).
 		Min("0").
 		Max(strconv.FormatInt(now.UnixMilli(), 10)).
@@ -98,11 +98,11 @@ func (r *RueidisDataloader[P]) Dig(ctx context.Context) (*TimeCapsule[P], error)
 		return nil, err
 	}
 
-	members, err := resp.AsStrSlice()
+	members, err := resp.AsInt64()
 	if err != nil {
 		return nil, err
 	}
-	if len(members) == 0 {
+	if members == 0 {
 		return nil, nil
 	}
 
@@ -173,6 +173,7 @@ func (r *RueidisDataloader[P]) Destroy(ctx context.Context, capsule *TimeCapsule
 			Build()
 
 		resp := r.rueidisClient.Do(ctx, zremCmd)
+
 		err := resp.Error()
 		if err != nil {
 			return err
