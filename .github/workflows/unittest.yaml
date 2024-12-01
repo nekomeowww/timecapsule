@@ -67,7 +67,7 @@ jobs:
 
     services:
       redisv5:
-        image: redis:5
+        image: redis:7
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -77,7 +77,7 @@ jobs:
           - 6379:6379
 
       redisv6:
-        image: redis:6
+        image: redis:7
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
