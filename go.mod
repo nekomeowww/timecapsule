@@ -2,7 +2,7 @@ module github.com/nekomeowww/timecapsule/v2
 
 go 1.23.0
 
-toolchain go1.23.2
+toolchain go1.23.3
 
 require (
 	github.com/nekomeowww/xo v1.14.0
@@ -10,7 +10,7 @@ require (
 	github.com/redis/rueidis v1.0.49
 	github.com/samber/lo v1.47.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.31.0
 )
 
