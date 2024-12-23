@@ -196,8 +196,7 @@ func (r *RueidisDataloader[P]) DestroyAll(ctx context.Context) error {
 			Key(r.sortedSetKey).
 			Build()
 
-		resp := r.rueidisClient.Do(ctx, delCmd)
-		err := resp.Error()
+		err := r.rueidisClient.Do(ctx, delCmd).Error()
 		if err != nil {
 			return err
 		}

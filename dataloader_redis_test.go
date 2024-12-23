@@ -128,6 +128,7 @@ func TestRedisDataloader(t *testing.T) {
 					require.NotNil(capsule)
 
 					now := time.Now().UTC()
+
 					assert.Equal("shouldBeDugOut", capsule.Payload)
 					assert.GreaterOrEqual(now.UnixMilli(), capsule.DugOutAt)
 				})
@@ -165,6 +166,7 @@ func TestRedisDataloader(t *testing.T) {
 					require.NoError(err)
 
 					now := time.Now().UTC()
+
 					assert.Equal("shouldNotBeDugOut", requeuedCapsule.Payload)
 					assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.DugOutAt)
 				})

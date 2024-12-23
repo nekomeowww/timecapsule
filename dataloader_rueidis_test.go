@@ -134,6 +134,7 @@ func TestRueidisDataloder(t *testing.T) {
 
 					err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
 					require.NoError(err)
+
 					defer func() {
 						err = d.rueidisClient.Do(context.Background(), d.rueidisClient.B().Del().Key(d.sortedSetKey).Build()).Error()
 						assert.NoError(err)
@@ -144,6 +145,7 @@ func TestRueidisDataloder(t *testing.T) {
 					require.NotNil(capsule)
 
 					now := time.Now().UTC()
+
 					assert.Equal("shouldBeDugOut", capsule.Payload)
 					assert.GreaterOrEqual(now.UnixMilli(), capsule.DugOutAt)
 				})
@@ -159,6 +161,7 @@ func TestRueidisDataloder(t *testing.T) {
 
 					err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(100*time.Millisecond).UnixMilli())
 					require.NoError(err)
+
 					defer func() {
 						err = d.rueidisClient.Do(context.Background(), d.rueidisClient.B().Del().Key(d.sortedSetKey).Build()).Error()
 						assert.NoError(err)
@@ -188,6 +191,7 @@ func TestRueidisDataloder(t *testing.T) {
 					require.NoError(err)
 
 					now := time.Now().UTC()
+
 					assert.Equal("shouldNotBeDugOut", requeuedCapsule.Payload)
 					assert.GreaterOrEqual(now.UnixMilli(), requeuedCapsule.DugOutAt)
 				})
@@ -231,6 +235,7 @@ func TestRueidisDataloder(t *testing.T) {
 
 				err = d.BuryUtil(context.Background(), "shouldNotBeDugOut", time.Now().UTC().Add(5*time.Millisecond).UnixMilli())
 				require.NoError(err)
+
 				defer func() {
 					err = d.rueidisClient.Do(context.Background(), d.rueidisClient.B().Del().Key(d.sortedSetKey).Build()).Error()
 					assert.NoError(err)
