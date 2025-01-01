@@ -2,12 +2,12 @@ module github.com/nekomeowww/timecapsule/v2
 
 go 1.23.0
 
-toolchain go1.23.3
+toolchain go1.23.4
 
 require (
-	github.com/nekomeowww/xo v1.14.0
+	github.com/nekomeowww/xo v1.14.1
 	github.com/redis/go-redis/v9 v9.7.0
-	github.com/redis/rueidis v1.0.51
+	github.com/redis/rueidis v1.0.52
 	github.com/samber/lo v1.47.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
