@@ -2,8 +2,6 @@ module github.com/nekomeowww/timecapsule/v2
 
 go 1.24.0
 
-toolchain go1.24.3
-
 require (
 	github.com/nekomeowww/xo v1.16.0
 	github.com/redis/go-redis/v9 v9.9.0

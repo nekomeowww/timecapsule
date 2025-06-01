@@ -61,7 +61,9 @@ func TestRedisDataloader(t *testing.T) {
 				require.NoError(err)
 				require.Len(mems, 1)
 
-				capsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
+				member, ok := mems[0].Member.(string)
+				require.True(ok)
+				capsule, err := NewTimeCapsuleFromBase64String[any](member)
 				require.NoError(err)
 
 				now := time.Now().UTC()
@@ -94,7 +96,9 @@ func TestRedisDataloader(t *testing.T) {
 				require.NoError(err)
 				require.Len(mems, 1)
 
-				capsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
+				member, ok := mems[0].Member.(string)
+				require.True(ok)
+				capsule, err := NewTimeCapsuleFromBase64String[any](member)
 				require.NoError(err)
 
 				now := time.Now().UTC()
@@ -162,7 +166,9 @@ func TestRedisDataloader(t *testing.T) {
 					require.NoError(err)
 					require.Len(mems, 1)
 
-					requeuedCapsule, err := NewTimeCapsuleFromBase64String[any](mems[0].Member.(string))
+					member, ok := mems[0].Member.(string)
+					require.True(ok)
+					requeuedCapsule, err := NewTimeCapsuleFromBase64String[any](member)
 					require.NoError(err)
 
 					now := time.Now().UTC()
