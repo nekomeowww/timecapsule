@@ -1,15 +1,15 @@
 module github.com/nekomeowww/timecapsule/v2
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/nekomeowww/xo v1.18.1
-	github.com/redis/go-redis/v9 v9.17.1
-	github.com/redis/rueidis v1.0.68
-	github.com/samber/lo v1.52.0
-	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.47.0
+	github.com/redis/go-redis/v9 v9.22.0
+	github.com/redis/rueidis v1.0.77
+	github.com/samber/lo v1.53.0
+	github.com/sirupsen/logrus v1.10.2
+	github.com/stretchr/testify v1.12.1
+	golang.org/x/net v0.58.0
 )
 
 require (
@@ -19,10 +19,12 @@ require (
 	github.com/nekomeowww/fo v1.6.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
